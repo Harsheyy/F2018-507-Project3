@@ -44,7 +44,7 @@ statement = '''
 		'Rating' REAL,
 		'BeanType' VARCHAR(128) NOT NULL,
 		'BroadBeanOriginId' INT,
-		FOREIGN KEY(CompanyLocationId) REFERENCES Countries(Id),
+		FOREIGN KEY(CompanyLocationId) REFERENCES Countries(Id) ON DELETE CASCADE,
 		FOREIGN KEY(BroadBeanOriginId) REFERENCES Countries(Id));'''
 cur.execute(statement)	
 
@@ -84,6 +84,8 @@ def process_command(command):
 	params = []
 	for items in range(1, len(parse)):
 		params.append(parse[items])
+
+	#cur.execute('UPDATE Bars SET CompanyLocationId = (SELECT Countries.EnglishName FROM Bars JOIN Countries ON CompanyLocationId = Countries.Id)')
 
 	#Globals
 	statement = ''
@@ -291,19 +293,19 @@ def interactive_prompt():
         	continue
         results = process_command(response)
 
-        '''response2 = response.split()
+        response2 = response.split()
         if(response2[0] == 'bars'):
        		for items in results:
-       			print(str(items[0]).strip()+'\t'+str(items[1]).strip()+'\t'+str(items[2]).strip()+'\t'+str(items[3]).strip()+'\t'+str(items[4]).strip()+'\t'+str(items[5]).strip())
+       			print('{:<15} {:<10} {:<10} {:<10} {:<10} {:<5}'.format(str(items[0]),str(items[1]),str(items[2]),str(items[3]),str(items[4]),str(items[5])))
        	elif(response2[0] == 'companies'):
        		for items in results:
-       			print(str(items[0]).strip()+'\t'+str(items[1]).strip()+'\t'+str(items[2]).strip())
+       			print('{:<20} {:<10} {:<10}'.format(str(items[0]),str(items[1]),str(items[2])))
        	elif(response2[0] == 'countries'):
        		for items in results:
-       			print(str(items[0]).strip()+'\t'+str(items[1]).strip()+'\t'+str(items[2]).strip())
+       			print('{:<15} {:<10} {:<10}'.format(str(items[0]),str(items[1]),str(items[2])))
        	elif(response2[0] == 'regions'):
        		for items in results:
-       			print(str(items[0]).strip()+'\t'+str(items[1]).strip())'''
+       			print('{:<9} {}'.format(str(items[0]),str(items[1])))
         print('')
 
 # Make sure nothing runs or prints out when this file is run as a module
