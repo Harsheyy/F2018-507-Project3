@@ -274,7 +274,7 @@ def process_command(command):
 	conn.commit()
 	conn.close()
 	if(invalid == True):
-		return 0
+		return []
 
 	return results
 
