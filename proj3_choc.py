@@ -40,12 +40,12 @@ statement = '''
 		'REF' VARCHAR(128) NOT NULL,
 		'ReviewDate' VARCHAR(128) NOT NULL,
 		'CocoaPercent' REAL,
-		'CompanyLocation' INT NOT NULL,
+		'CompanyLocationId' INT NOT NULL,
 		'Rating' REAL,
 		'BeanType' VARCHAR(128) NOT NULL,
-		'BroadBeanOrigin' INT NOT NULL,
-		FOREIGN KEY(CompanyLocation) REFERENCES Countries(EnglishName),
-		FOREIGN KEY(BroadBeanOrigin) REFERENCES Countries(EnglishName));'''
+		'BroadBeanOriginId' INT,
+		FOREIGN KEY(CompanyLocationId) REFERENCES Countries(Id),
+		FOREIGN KEY(BroadBeanOriginId) REFERENCES Countries(Id));'''
 cur.execute(statement)	
 
 with open(COUNTRIESJSON) as file:
@@ -69,7 +69,9 @@ next(reader)
 for row in reader:
 	cocoap = row[4].split('%')
 	row[4] = cocoap[0]
-	cur.execute("INSERT INTO Bars(Company, SpecificBeanBarName, REF, ReviewDate, CocoaPercent, CompanyLocation, Rating, BeanType, BroadBeanOrigin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", row)
+	cur.execute("INSERT INTO Bars(Company, SpecificBeanBarName, REF, ReviewDate, CocoaPercent, CompanyLocationId, Rating, BeanType, BroadBeanOriginId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", row)
+
+#cur.execute('UPDATE Bars SET CompanyLocationId = (SELECT Id FROM Countries WHERE EnglishName = Bars.CompanyLocationId)')
 
 conn.commit()
 conn.close()
@@ -90,7 +92,7 @@ def process_command(command):
 	country_name = ''
 	region_name = ''
 	sortBy = 'Rating'
-	sell_source = 'CompanyLocation'
+	sell_source = 'CompanyLocationId'
 	topBot = 'top'
 	limit = '10'
 	fetch_alot = False
@@ -121,9 +123,9 @@ def process_command(command):
 						fetch_alot = True
 
 					if(temp[0] == 'sellcountry' or temp[0] == 'sellregion'):
-						area_desc = 'CompanyLocation'
+						area_desc = 'CompanyLocationId'
 					elif(temp[0] == 'sourcecountry' or temp[0] == 'sourceregion'):
-						area_desc = 'BroadBeanOrigin'
+						area_desc = 'BroadBeanOriginId'
 
 				elif(temp[0] == 'top' or temp[0] == 'bottom'):
 					topBot = temp[0]
@@ -132,7 +134,7 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT SpecificBeanBarName, Company, CompanyLocation, Rating, CocoaPercent, BroadBeanOrigin FROM Bars'
+		statement = 'SELECT SpecificBeanBarName, Company, CompanyLocationId, Rating, CocoaPercent, BroadBeanOriginId FROM Bars'
 		if(country_name != '' and fetch_alot == False):
 			statement += ' WHERE '+ str(area_desc) +' = "'+ str(country_name[0]) + '"'
 		elif(country_name != '' and fetch_alot == True):
@@ -178,13 +180,13 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT Company, CompanyLocation, ' + str(sortBy) + ' FROM Bars'
+		statement = 'SELECT Company, CompanyLocationId, ' + str(sortBy) + ' FROM Bars'
 		if(country_name != '' and fetch_alot == False):
-			statement += ' WHERE CompanyLocation = "'+ str(country_name[0]) + '"'
+			statement += ' WHERE CompanyLocationId = "'+ str(country_name[0]) + '"'
 		elif(country_name != '' and fetch_alot == True):
-			statement += ' WHERE CompanyLocation = "'+ str(country_name[0][0]) + '"'
+			statement += ' WHERE CompanyLocationId = "'+ str(country_name[0][0]) + '"'
 			for i in range(1, len(country_name)):
-				statement += ' OR CompanyLocation = "'+ str(country_name[i][0]) + '"'
+				statement += ' OR CompanyLocationId = "'+ str(country_name[i][0]) + '"'
 
 		if(topBot == 'top'):
 			statement += ' GROUP BY Company HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
@@ -201,9 +203,9 @@ def process_command(command):
 				elif(params[i] == 'bars_sold'):
 					sortBy = 'COUNT(SpecificBeanBarName)'
 				elif(params[i] == 'sellers'):
-					sell_source = 'CompanyLocation'
+					sell_source = 'CompanyLocationId'
 				elif(params[i] == 'sources'):
-					sell_source = 'BroadBeanOrigin'
+					sell_source = 'BroadBeanOriginId'
 				else:
 					print('invalid command')
 					invalid = True
@@ -218,14 +220,14 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT CompanyLocation, Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.EnglishName'
+		statement = 'SELECT '+ str(sell_source) + ', Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.EnglishName'
 		if(region_name != ''):
 			statement += ' AND Countries.Region = "'+ str(region_name) + '"'
 
 		if(topBot == 'top'):
-			statement += ' GROUP BY '+ str(sell_source) +' HAVING COUNT(DISTINCT SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
+			statement += ' GROUP BY '+ str(sell_source) +' HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
 		elif(topBot == 'bottom'):
-			statement += ' GROUP BY '+ str(sell_source) +' HAVING COUNT(DISTINCT SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' ASC LIMIT ' + str(limit)
+			statement += ' GROUP BY '+ str(sell_source) +' HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' ASC LIMIT ' + str(limit)
 
 	elif(main == 'regions'):
 		for i in range(0, len(params)):
@@ -237,9 +239,9 @@ def process_command(command):
 				elif(params[i] == 'bars_sold'):
 					sortBy = 'COUNT(SpecificBeanBarName)'
 				elif(params[i] == 'sellers'):
-					sell_source = 'CompanyLocation'
+					sell_source = 'CompanyLocationId'
 				elif(params[i] == 'sources'):
-					sell_source = 'BroadBeanOrigin'
+					sell_source = 'BroadBeanOriginId'
 				else:
 					print('invalid command')
 					invalid = True
@@ -254,9 +256,9 @@ def process_command(command):
 
 		statement = 'SELECT Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.EnglishName'
 		if(topBot == 'top'):
-			statement += ' GROUP BY Region HAVING COUNT(DISTINCT SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
+			statement += ' GROUP BY Region HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
 		elif(topBot == 'bottom'):
-			statement += ' GROUP BY Region HAVING COUNT(DISTINCT SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' ASC LIMIT ' + str(limit)
+			statement += ' GROUP BY Region HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' ASC LIMIT ' + str(limit)
 
 	elif(main == 'exit'):
 		print("Bye!")
@@ -264,15 +266,15 @@ def process_command(command):
 		print('invalid command')
 		invalid = True
 
-	print(statement)
-	#cur.execute(statement)
-	#results = cur.fetchall()
+	#print(statement)
+	cur.execute(statement)
+	results = cur.fetchall()
 	conn.commit()
 	conn.close()
 	if(invalid == True):
 		return 0
 
-	#return results
+	return results
 
 def load_help_text():
     with open('help.txt') as f:
