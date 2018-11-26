@@ -44,8 +44,8 @@ statement = '''
 		'Rating' REAL,
 		'BeanType' VARCHAR(128) NOT NULL,
 		'BroadBeanOriginId' INT,
-		FOREIGN KEY(CompanyLocationId) REFERENCES Countries(Id) ON DELETE CASCADE,
-		FOREIGN KEY(BroadBeanOriginId) REFERENCES Countries(Id));'''
+		FOREIGN KEY (CompanyLocationId) REFERENCES Countries(Id),
+		FOREIGN KEY (BroadBeanOriginId) REFERENCES Countries(Id));'''
 cur.execute(statement)	
 
 with open(COUNTRIESJSON) as file:
@@ -71,7 +71,8 @@ for row in reader:
 	row[4] = cocoap[0]
 	cur.execute("INSERT INTO Bars(Company, SpecificBeanBarName, REF, ReviewDate, CocoaPercent, CompanyLocationId, Rating, BeanType, BroadBeanOriginId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", row)
 
-#cur.execute('UPDATE Bars SET CompanyLocationId = (SELECT Id FROM Countries WHERE EnglishName = Bars.CompanyLocationId)')
+cur.execute('UPDATE Bars SET CompanyLocationId = (SELECT Id FROM Countries WHERE EnglishName = Bars.CompanyLocationId)')
+cur.execute('UPDATE Bars SET BroadBeanOriginId = (SELECT Id FROM Countries WHERE EnglishName = Bars.BroadBeanOriginId)')
 
 conn.commit()
 conn.close()
@@ -85,13 +86,11 @@ def process_command(command):
 	for items in range(1, len(parse)):
 		params.append(parse[items])
 
-	#cur.execute('UPDATE Bars SET CompanyLocationId = (SELECT Countries.EnglishName FROM Bars JOIN Countries ON CompanyLocationId = Countries.Id)')
-
 	#Globals
 	statement = ''
 	area_desc = ''
 	area = ''
-	country_name = ''
+	country_id = ''
 	region_name = ''
 	sortBy = 'Rating'
 	sell_source = 'CompanyLocationId'
@@ -114,14 +113,14 @@ def process_command(command):
 				temp = params[i].split('=')
 				if(temp[0] == 'sellcountry' or temp[0] == 'sourcecountry' or temp[0] == 'sellregion' or temp[0] == 'sourceregion'):	
 					if(temp[0] == 'sellcountry' or temp[0] == 'sourcecountry'):
-						statement = 'SELECT EnglishName FROM Countries WHERE Alpha2 = "' + str(temp[1]) + '"'
+						statement = 'SELECT Id FROM Countries WHERE Alpha2 = "' + str(temp[1]) + '"'
 						cur.execute(statement)
-						country_name = cur.fetchone()
+						country_id = cur.fetchone()
 						fetch_alot = False
 					if(temp[0] == 'sellregion' or temp[0] == 'sourceregion'):
-						statement = 'SELECT EnglishName FROM Countries WHERE Region = "' + str(temp[1]) + '" OR Subregion = "' + str(temp[1]) + '"'
+						statement = 'SELECT Id FROM Countries WHERE Region = "' + str(temp[1]) + '" OR Subregion = "' + str(temp[1]) + '"'
 						cur.execute(statement)
-						country_name = cur.fetchall()
+						country_id = cur.fetchall()
 						fetch_alot = True
 
 					if(temp[0] == 'sellcountry' or temp[0] == 'sellregion'):
@@ -136,13 +135,15 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT SpecificBeanBarName, Company, CompanyLocationId, Rating, CocoaPercent, BroadBeanOriginId FROM Bars'
-		if(country_name != '' and fetch_alot == False):
-			statement += ' WHERE '+ str(area_desc) +' = "'+ str(country_name[0]) + '"'
-		elif(country_name != '' and fetch_alot == True):
-			statement += ' WHERE '+ str(area_desc) +' = "'+ str(country_name[0][0]) + '"'
-			for i in range(1, len(country_name)):
-				statement += 'OR '+ str(area_desc) +' = "'+ str(country_name[i][0]) + '"'
+		statement = 'SELECT SpecificBeanBarName, Company, company.EnglishName CompanyName, Rating, CocoaPercent, bean.EnglishName BeanLocation FROM Bars'
+		statement += ' LEFT OUTER JOIN Countries AS company ON CompanyLocationId = company.Id'
+		statement += ' LEFT OUTER JOIN Countries AS bean ON BroadBeanOriginId = bean.Id'
+		if(country_id != '' and fetch_alot == False):
+			statement += ' WHERE '+ str(area_desc) +' = "'+ str(country_id[0]) + '"'
+		elif(country_id != '' and fetch_alot == True):
+			statement += ' WHERE '+ str(area_desc) +' = "'+ str(country_id[0][0]) + '"'
+			for i in range(1, len(country_id)):
+				statement += 'OR '+ str(area_desc) +' = "'+ str(country_id[i][0]) + '"'
 		
 		if(topBot == 'top'):
 			statement += ' ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
@@ -165,14 +166,14 @@ def process_command(command):
 				temp = params[i].split('=')
 				if(temp[0] == 'country' or temp[0] == 'region'):
 					if(temp[0] == 'country'):
-						statement = 'SELECT EnglishName FROM Countries WHERE Alpha2 = "' + str(temp[1]) + '"'
+						statement = 'SELECT Id FROM Countries WHERE Alpha2 = "' + str(temp[1]) + '"'
 						cur.execute(statement)
-						country_name = cur.fetchone()
+						country_id = cur.fetchone()
 						fetch_alot = False
 					if(temp[0] == 'region'):
-						statement = 'SELECT EnglishName FROM Countries WHERE Region = "' + str(temp[1]) + '" OR Subregion = "' + str(temp[1]) + '"'
+						statement = 'SELECT Id FROM Countries WHERE Region = "' + str(temp[1]) + '" OR Subregion = "' + str(temp[1]) + '"'
 						cur.execute(statement)
-						country_name = cur.fetchall()
+						country_id = cur.fetchall()
 						fetch_alot = True
 
 				elif(temp[0] == 'top' or temp[0] == 'bottom'):
@@ -182,13 +183,13 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT Company, CompanyLocationId, ' + str(sortBy) + ' FROM Bars'
-		if(country_name != '' and fetch_alot == False):
-			statement += ' WHERE CompanyLocationId = "'+ str(country_name[0]) + '"'
-		elif(country_name != '' and fetch_alot == True):
-			statement += ' WHERE CompanyLocationId = "'+ str(country_name[0][0]) + '"'
-			for i in range(1, len(country_name)):
-				statement += ' OR CompanyLocationId = "'+ str(country_name[i][0]) + '"'
+		statement = 'SELECT Company, EnglishName, ' + str(sortBy) + ' FROM Bars JOIN Countries ON CompanyLocationId = Countries.Id'
+		if(country_id != '' and fetch_alot == False):
+			statement += ' WHERE CompanyLocationId = "'+ str(country_id[0]) + '"'
+		elif(country_id != '' and fetch_alot == True):
+			statement += ' WHERE CompanyLocationId = "'+ str(country_id[0][0]) + '"'
+			for i in range(1, len(country_id)):
+				statement += ' OR CompanyLocationId = "'+ str(country_id[i][0]) + '"'
 
 		if(topBot == 'top'):
 			statement += ' GROUP BY Company HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
@@ -222,7 +223,7 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT '+ str(sell_source) + ', Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.EnglishName'
+		statement = 'SELECT EnglishName, Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.Id'
 		if(region_name != ''):
 			statement += ' AND Countries.Region = "'+ str(region_name) + '"'
 
@@ -256,7 +257,7 @@ def process_command(command):
 					print("invalid command")
 					invalid = True
 
-		statement = 'SELECT Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.EnglishName'
+		statement = 'SELECT Region, ' + str(sortBy) + ' FROM Bars JOIN Countries WHERE ' +str(sell_source)+ ' = Countries.Id'
 		if(topBot == 'top'):
 			statement += ' GROUP BY Region HAVING COUNT(SpecificBeanBarName) > 4 ORDER BY ' + str(sortBy) + ' DESC LIMIT ' + str(limit)
 		elif(topBot == 'bottom'):
